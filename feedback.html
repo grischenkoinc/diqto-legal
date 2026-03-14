@@ -433,7 +433,7 @@
     // 2. Extensions → Apps Script
     // 3. Вставте код (нижче в коментарі)
     // 4. Deploy → Web App → Anyone → Deploy → скопіюйте URL
-    const ENDPOINT = 'https://script.google.com/macros/s/AKfycbyBqtQCQzCYejWrK6Fj-ZQbffsS6zbw1hj9JM-yS1WuyiDQlEA_iYExy7YQK88ZD-xY/exec';  // ← Вставте URL вашого Apps Script
+    const ENDPOINT = 'https://script.google.com/macros/s/AKfycby6s92RISui56HEQPHqiXkliO244DDaFro2u_2tXF7z_GGxLXHRNIWukH2-Pn8q9a6H/exec';  // ← Вставте URL вашого Apps Script
     // ============================================================
 
     /*
@@ -619,26 +619,42 @@
         let sent = false;
         if (ENDPOINT) {
             try {
-                // Відправляємо тільки стиснені зображення (без відео)
                 const serverAttachments = imageData.filter(a => !a.localOnly);
-                const payload = {
-                    timestamp: report.timestamp,
-                    author: report.author,
-                    device: report.device,
-                    type: report.type,
-                    text: report.text,
-                    attachments: serverAttachments
-                };
 
-                const bodyStr = JSON.stringify(payload);
-                console.log('Payload size:', (bodyStr.length / 1024).toFixed(0) + ' KB, images:', serverAttachments.length);
-
+                // Крок 1: відправляємо текст (без зображень)
                 await fetch(ENDPOINT, {
                     method: 'POST',
                     mode: 'no-cors',
                     headers: { 'Content-Type': 'text/plain' },
-                    body: bodyStr
+                    body: JSON.stringify({
+                        action: 'text',
+                        timestamp: report.timestamp,
+                        author: report.author,
+                        device: report.device,
+                        type: report.type,
+                        text: report.text,
+                        imageCount: serverAttachments.length
+                    })
                 });
+
+                // Крок 2: кожне зображення окремим запитом
+                for (let i = 0; i < serverAttachments.length; i++) {
+                    const att = serverAttachments[i];
+                    console.log('Sending image', i + 1, '/', serverAttachments.length, 'size:', (att.data.length / 1024).toFixed(0), 'KB');
+                    await fetch(ENDPOINT, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'text/plain' },
+                        body: JSON.stringify({
+                            action: 'image',
+                            timestamp: report.timestamp,
+                            data: att.data,
+                            type: att.type,
+                            name: att.name
+                        })
+                    });
+                }
+
                 sent = true;
             } catch (err) {
                 console.warn('Server send failed:', err);
