@@ -418,89 +418,25 @@
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
-<!-- Lightbox -->
-<div class="lightbox" id="lightbox">
-    <button class="lightbox-close" onclick="closeLightbox()">&#10005;</button>
-    <img id="lightboxImg" src="" alt="">
-    <video id="lightboxVideo" src="" controls style="display:none;max-width:100%;max-height:90vh;border-radius:8px"></video>
-</div>
 
 <script>
     // ============================================================
-    // НАЛАШТУВАННЯ: Вставте URL вашого Google Apps Script
+    // TELEGRAM
     // ============================================================
-    // 1. Створіть Google Sheet
-    // 2. Extensions → Apps Script
-    // 3. Вставте код (нижче в коментарі)
-    // 4. Deploy → Web App → Anyone → Deploy → скопіюйте URL
-    // TELEGRAM — скріншоти приходять сюди
-    const TG_TOKEN = '8605209251:AAEa4iuoXfhBTLcXLUyhx7fNQh2bPVPMyGU';   // ← токен від @BotFather
-    const TG_CHAT_ID = '5098699923'; // ← ID групи/каналу
-
-    // GOOGLE SHEET — текстові дані (без зображень)
-    const ENDPOINT = '';   // ← URL Apps Script (необов'язково)
+    const TG_TOKEN = '8605209251:AAEa4iuoXfhBTLcXLUyhx7fNQh2bPVPMyGU';    // ← токен від @BotFather
+    const TG_CHAT_ID = '-1003859031354';
     // ============================================================
-
-    /*
-    === Google Apps Script код для вставки: ===
-
-    // Створіть папку "Diqto Feedback" на Google Drive
-    // і вставте її ID нижче (з URL папки)
-    var FOLDER_ID = 'YOUR_FOLDER_ID';
-
-    function doPost(e) {
-      var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-      var data = JSON.parse(e.postData.contents);
-      var folder = DriveApp.getFolderById(1-TZCWTmcc7NnRbfMejqKaKa5PRI-YACA);
-
-      // Зберігаємо файли на Google Drive
-      var fileLinks = [];
-      if (data.attachments && data.attachments.length > 0) {
-        for (var i = 0; i < data.attachments.length; i++) {
-          var att = data.attachments[i];
-          var bytes = Utilities.base64Decode(att.data.split(',')[1]);
-          var blob = Utilities.newBlob(bytes, att.type, att.name);
-          var file = folder.createFile(blob);
-          file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-          fileLinks.push(file.getUrl());
-        }
-      }
-
-      sheet.appendRow([
-        data.timestamp,
-        data.author,
-        data.device,
-        data.type,
-        data.text,
-        fileLinks.join('\n')
-      ]);
-
-      return ContentService.createTextOutput(
-        JSON.stringify({status: 'ok'})
-      ).setMimeType(ContentService.MimeType.JSON);
-    }
-
-    // Перший рядок листа зробіть заголовком:
-    // Timestamp | Author | Device | Type | Text | Files
-
-    ============================================
-    */
 
     let selectedType = 'bug';
     let attachedFiles = [];
 
-    // Запам'ятати ім'я
     const nameInput = document.getElementById('authorName');
     nameInput.value = localStorage.getItem('diqto_tester_name') || '';
-    nameInput.addEventListener('input', () => {
-        localStorage.setItem('diqto_tester_name', nameInput.value);
-    });
+    nameInput.addEventListener('input', () => localStorage.setItem('diqto_tester_name', nameInput.value));
 
     const deviceInput = document.getElementById('deviceModel');
     deviceInput.value = localStorage.getItem('diqto_tester_device') || '';
-    deviceInput.addEventListener('input', () => {
-        localStorage.setItem('diqto_tester_device', deviceInput.value);
-    });
+    deviceInput.addEventListener('input', () => localStorage.setItem('diqto_tester_device', deviceInput.value));
 
     // Тип
     document.querySelectorAll('.type-btn').forEach(btn => {
@@ -508,41 +444,23 @@
             document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             selectedType = btn.dataset.type;
-            const placeholders = {
-                bug: 'Опишіть що трапилось, де і коли...',
-                idea: 'Яку фічу хотіли б бачити?',
-                feedback: 'Ваші враження, думки, коментарі...'
-            };
-            document.getElementById('reportText').placeholder = placeholders[selectedType];
+            const ph = { bug: 'Опишіть що трапилось, де і коли...', idea: 'Яку фічу хотіли б бачити?', feedback: 'Ваші враження, думки, коментарі...' };
+            document.getElementById('reportText').placeholder = ph[selectedType];
         });
     });
 
     // Drag & drop
     const uploadArea = document.getElementById('uploadArea');
-    uploadArea.addEventListener('dragover', e => {
-        e.preventDefault();
-        uploadArea.classList.add('drag-over');
-    });
+    uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('drag-over'); });
     uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag-over'));
-    uploadArea.addEventListener('drop', e => {
-        e.preventDefault();
-        uploadArea.classList.remove('drag-over');
-        handleFiles(e.dataTransfer.files);
-    });
+    uploadArea.addEventListener('drop', e => { e.preventDefault(); uploadArea.classList.remove('drag-over'); handleFiles(e.dataTransfer.files); });
 
-    // File input
-    document.getElementById('fileInput').addEventListener('change', e => {
-        handleFiles(e.target.files);
-        e.target.value = '';
-    });
+    document.getElementById('fileInput').addEventListener('change', e => { handleFiles(e.target.files); e.target.value = ''; });
 
     function handleFiles(fileList) {
         for (const file of fileList) {
             if (attachedFiles.length >= 5) break;
-            if (file.size > 50 * 1024 * 1024) {
-                showToast('Файл завеликий (макс. 50 МБ)');
-                continue;
-            }
+            if (file.size > 50 * 1024 * 1024) { showToast('Файл завеликий (макс. 50 МБ)'); continue; }
             attachedFiles.push(file);
         }
         renderPreviews();
@@ -554,7 +472,6 @@
         attachedFiles.forEach((file, i) => {
             const item = document.createElement('div');
             item.className = 'preview-item';
-
             if (file.type.startsWith('image/')) {
                 const img = document.createElement('img');
                 img.src = URL.createObjectURL(file);
@@ -566,8 +483,7 @@
                 item.appendChild(video);
                 const badge = document.createElement('span');
                 badge.className = 'video-badge';
-                const secs = Math.round(file.size / 500000);
-                badge.textContent = '▶ ' + formatFileSize(file.size);
+                badge.textContent = '\u25b6 ' + formatFileSize(file.size);
                 item.appendChild(badge);
             } else {
                 const div = document.createElement('div');
@@ -575,23 +491,46 @@
                 div.textContent = file.name;
                 item.appendChild(div);
             }
-
             const removeBtn = document.createElement('button');
             removeBtn.className = 'preview-remove';
             removeBtn.innerHTML = '&#10005;';
-            removeBtn.onclick = () => {
-                attachedFiles.splice(i, 1);
-                renderPreviews();
-            };
+            removeBtn.onclick = () => { attachedFiles.splice(i, 1); renderPreviews(); };
             item.appendChild(removeBtn);
             container.appendChild(item);
         });
     }
 
+    // Telegram API helpers
+    async function tgSend(method, body) {
+        const res = await fetch(`https://api.telegram.org/bot${TG_TOKEN}/${method}`, {
+            method: 'POST',
+            ...body
+        });
+        const json = await res.json();
+        if (!json.ok) console.error('TG error:', json);
+        return json;
+    }
+
+    function buildCaption(report) {
+        const icons = { bug: '\ud83d\udc1b', idea: '\ud83d\udca1', feedback: '\ud83d\udcac' };
+        const labels = { bug: '\u0411\u0410\u0413', idea: '\u0406\u0414\u0415\u042f', feedback: '\u0414\u0423\u041c\u041a\u0410' };
+        const icon = icons[report.type] || '\ud83d\udcac';
+        const label = labels[report.type] || report.type;
+        const lines = [
+            `${icon} <b>${label}</b>`,
+            '',
+            report.text,
+            '',
+            `\ud83d\udc64 ${report.author}`,
+        ];
+        if (report.device) lines.push(`\ud83d\udcf1 ${report.device}`);
+        lines.push(`\ud83d\udd50 ${new Date().toLocaleString('uk-UA')}`);
+        return lines.join('\n');
+    }
+
     // Submit
     document.getElementById('reportForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-
         const text = document.getElementById('reportText').value.trim();
         if (!text) return;
 
@@ -599,157 +538,90 @@
         btn.textContent = 'Надсилаю...';
         btn.disabled = true;
 
-        // Стискаємо зображення перед відправкою
-        const imageData = [];
-        for (const file of attachedFiles) {
-            if (file.type.startsWith('image/')) {
-                const compressed = await compressImage(file);
-                imageData.push(compressed);
-            } else if (file.type.startsWith('video/')) {
-                const base64 = await fileToBase64(file);
-                imageData.push({ data: base64, type: file.type, name: file.name, localOnly: true });
-            }
-        }
-
         const report = {
             timestamp: new Date().toISOString(),
             author: nameInput.value.trim() || 'Anonymous',
             device: deviceInput.value.trim() || '',
             type: selectedType,
-            text: text,
-            attachments: imageData
+            text: text
         };
 
-        // Відправка в Telegram
+        const caption = buildCaption(report);
         let sent = false;
+
         if (TG_TOKEN && TG_CHAT_ID) {
             try {
-                const typeLabels = { bug: '🐛 БАГ', idea: '💡 ІДЕЯ', feedback: '💬 ДУМКА' };
-                const message = `${typeLabels[report.type] || report.type}\n\n${report.text}\n\n👤 ${report.author}\n📱 ${report.device}\n🕐 ${new Date().toLocaleString('uk-UA')}`;
+                const mediaFiles = attachedFiles.filter(f => f.type.startsWith('image/') || f.type.startsWith('video/'));
 
-                const allFiles = imageData.filter(a => !a.localOnly);
-
-                if (allFiles.length === 0) {
+                if (mediaFiles.length === 0) {
                     // Тільки текст
-                    await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
-                        method: 'POST',
+                    await tgSend('sendMessage', {
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ chat_id: TG_CHAT_ID, text: message })
+                        body: JSON.stringify({
+                            chat_id: TG_CHAT_ID,
+                            text: caption,
+                            parse_mode: 'HTML'
+                        })
                     });
-                } else {
-                    // Перше зображення з підписом
-                    for (let i = 0; i < allFiles.length; i++) {
-                        const file = attachedFiles[i];
-                        const fd = new FormData();
-                        fd.append('chat_id', TG_CHAT_ID);
-                        if (i === 0) fd.append('caption', message);
-
-                        if (file.type.startsWith('video/')) {
-                            fd.append('video', file);
-                            await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendVideo`, { method: 'POST', body: fd });
-                        } else {
-                            fd.append('photo', file);
-                            await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendPhoto`, { method: 'POST', body: fd });
-                        }
+                } else if (mediaFiles.length === 1) {
+                    // Одне фото/відео з підписом
+                    const file = mediaFiles[0];
+                    const fd = new FormData();
+                    fd.append('chat_id', TG_CHAT_ID);
+                    fd.append('caption', caption);
+                    fd.append('parse_mode', 'HTML');
+                    if (file.type.startsWith('video/')) {
+                        fd.append('video', file);
+                        await tgSend('sendVideo', { body: fd });
+                    } else {
+                        fd.append('photo', file);
+                        await tgSend('sendPhoto', { body: fd });
                     }
+                } else {
+                    // Кілька файлів — sendMediaGroup
+                    const fd = new FormData();
+                    fd.append('chat_id', TG_CHAT_ID);
+                    const media = [];
+                    mediaFiles.forEach((file, i) => {
+                        const key = `file${i}`;
+                        fd.append(key, file);
+                        const type = file.type.startsWith('video/') ? 'video' : 'photo';
+                        const item = { type, media: `attach://${key}` };
+                        if (i === 0) {
+                            item.caption = caption;
+                            item.parse_mode = 'HTML';
+                        }
+                        media.push(item);
+                    });
+                    fd.append('media', JSON.stringify(media));
+                    await tgSend('sendMediaGroup', { body: fd });
                 }
                 sent = true;
             } catch (err) {
-                console.warn('Telegram send failed:', err);
+                console.error('Telegram send failed:', err);
             }
         }
 
-        // Також в Google Sheet (тільки текст)
-        if (ENDPOINT) {
-            try {
-                await fetch(ENDPOINT, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'text/plain' },
-                    body: JSON.stringify({
-                        timestamp: report.timestamp,
-                        author: report.author,
-                        device: report.device,
-                        type: report.type,
-                        text: report.text
-                    })
-                });
-            } catch (err) {}
-        }
-
-        // Завжди зберігаємо локально
-        saveLocally(report);
+        // Зберігаємо локально (без base64 — тільки метадані)
+        const localReport = { ...report, fileCount: attachedFiles.length };
+        saveLocally(localReport);
 
         // Очистити форму
         document.getElementById('reportText').value = '';
         attachedFiles = [];
         renderPreviews();
-
         btn.textContent = 'Надіслати';
         btn.disabled = false;
-
-        showToast(sent ? 'Надіслано!' : 'Збережено локально!');
+        showToast(sent ? 'Надіслано в Telegram!' : 'Помилка відправки');
         updateCounter();
         renderHistory();
     });
 
-    function fileToBase64(file) {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.readAsDataURL(file);
-        });
-    }
-
-    // Стиснення зображення до макс 800px
-    function compressImage(file) {
-        return new Promise((resolve) => {
-            if (!file.type.startsWith('image/')) {
-                return fileToBase64(file).then(data => resolve({ data, type: file.type, name: file.name }));
-            }
-            const img = new Image();
-            img.onload = () => {
-                try {
-                    const MAX = 800;
-                    let w = img.width;
-                    let h = img.height;
-                    if (w > MAX || h > MAX) {
-                        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
-                        else { w = Math.round(w * MAX / h); h = MAX; }
-                    }
-                    const canvas = document.createElement('canvas');
-                    canvas.width = w;
-                    canvas.height = h;
-                    const ctx = canvas.getContext('2d');
-                    ctx.fillStyle = '#FFFFFF';
-                    ctx.fillRect(0, 0, w, h);
-                    ctx.drawImage(img, 0, 0, w, h);
-                    const compressed = canvas.toDataURL('image/png');
-                    console.log('Compressed:', file.name, (file.size/1024).toFixed(0), 'KB →', (compressed.length * 0.75 / 1024).toFixed(0), 'KB');
-                    // Якщо стиснення дало результат — використовуємо його
-                    if (compressed && compressed.length > 100) {
-                        resolve({ data: compressed, type: 'image/png', name: file.name.replace(/\.\w+$/, '.png') });
-                    } else {
-                        throw new Error('Canvas empty');
-                    }
-                } catch (err) {
-                    // Якщо canvas не спрацював — відправляємо оригінал
-                    console.warn('Compression failed, sending original:', err);
-                    fileToBase64(file).then(data => resolve({ data, type: file.type, name: file.name }));
-                }
-            };
-            img.onerror = () => {
-                // Якщо зображення не завантажилось — відправляємо оригінал
-                console.warn('Image load failed, sending original');
-                fileToBase64(file).then(data => resolve({ data, type: file.type, name: file.name }));
-            };
-            img.src = URL.createObjectURL(file);
-        });
-    }
-
     function saveLocally(report) {
         const saved = JSON.parse(localStorage.getItem('diqto_reports') || '[]');
         saved.unshift(report);
+        // Обмежуємо до 50 записів щоб не забити localStorage
+        if (saved.length > 50) saved.length = 50;
         localStorage.setItem('diqto_reports', JSON.stringify(saved));
     }
 
@@ -760,13 +632,10 @@
         setTimeout(() => toast.classList.remove('show'), 2500);
     }
 
-    // Counter
     function updateCounter() {
         const saved = JSON.parse(localStorage.getItem('diqto_reports') || '[]');
         const el = document.getElementById('counter');
-        if (saved.length > 0) {
-            el.textContent = `Надіслано репортів: ${saved.length}`;
-        }
+        if (saved.length > 0) el.textContent = '\u041d\u0430\u0434\u0456\u0441\u043b\u0430\u043d\u043e \u0440\u0435\u043f\u043e\u0440\u0442\u0456\u0432: ' + saved.length;
     }
 
     // History
@@ -781,78 +650,30 @@
     function renderHistory() {
         const container = document.getElementById('history');
         const saved = JSON.parse(localStorage.getItem('diqto_reports') || '[]');
-
-        if (saved.length === 0) {
-            container.innerHTML = '<div class="history-empty">Поки що порожньо</div>';
-            return;
-        }
-
+        if (saved.length === 0) { container.innerHTML = '<div class="history-empty">Поки що порожньо</div>'; return; }
         const typeLabels = { bug: 'Баг', idea: 'Ідея', feedback: 'Думка' };
-
         container.innerHTML = saved.map(r => {
             const date = new Date(r.timestamp);
-            const dateStr = date.toLocaleDateString('uk-UA', {
-                day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
-            });
-
-            const items = r.attachments || r.images || [];
-            const mediaHtml = items.length > 0
-                ? `<div class="history-images">${items.map(a => {
-                    const src = typeof a === 'string' ? a : a.data;
-                    const isVideo = typeof a === 'object' && a.type && a.type.startsWith('video/');
-                    if (isVideo) {
-                        return `<video src="${src}" style="width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid #E5E7EB;cursor:pointer" onclick="openLightbox('${src.replace(/'/g, "\\'")}', true)"></video>`;
-                    }
-                    return `<img src="${src}" onclick="openLightbox('${src.replace(/'/g, "\\'")}')">`
-                  }).join('')}</div>`
-                : '';
-
+            const dateStr = date.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+            const filesNote = r.fileCount ? `<div style="font-size:12px;color:#9CA3AF;margin-top:4px">\ud83d\udcce ${r.fileCount} \u0444\u0430\u0439\u043b(\u0456\u0432)</div>` : '';
             return `
                 <div class="history-item type-${r.type}">
                     <div class="history-meta">
-                        <span class="history-type">${typeLabels[r.type] || r.type}${r.device ? ' · ' + escapeHtml(r.device) : ''}</span>
+                        <span class="history-type">${typeLabels[r.type] || r.type}${r.device ? ' \u00b7 ' + escapeHtml(r.device) : ''}</span>
                         <span>${dateStr}</span>
                     </div>
                     <div class="history-text">${escapeHtml(r.text)}</div>
-                    ${mediaHtml}
-                </div>
-            `;
+                    ${filesNote}
+                </div>`;
         }).join('');
     }
 
-    function escapeHtml(str) {
-        const div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
-    }
-
-    function openLightbox(src, isVideo) {
-        const img = document.getElementById('lightboxImg');
-        const video = document.getElementById('lightboxVideo');
-        if (isVideo) {
-            img.style.display = 'none';
-            video.style.display = 'block';
-            video.src = src;
-        } else {
-            video.style.display = 'none';
-            video.pause();
-            img.style.display = 'block';
-            img.src = src;
-        }
-        document.getElementById('lightbox').classList.add('open');
-    }
-    function closeLightbox() {
-        document.getElementById('lightbox').classList.remove('open');
-        document.getElementById('lightboxVideo').pause();
-    }
+    function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
 
     function formatFileSize(bytes) {
         if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
         return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
     }
-    document.getElementById('lightbox').addEventListener('click', (e) => {
-        if (e.target === e.currentTarget) closeLightbox();
-    });
 
     // Init
     updateCounter();
