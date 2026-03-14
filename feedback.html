@@ -433,15 +433,33 @@
     // 2. Extensions → Apps Script
     // 3. Вставте код (нижче в коментарі)
     // 4. Deploy → Web App → Anyone → Deploy → скопіюйте URL
-    const ENDPOINT = 'https://script.google.com/macros/s/AKfycbw9bBSF1xNOi8ENUCiVBtsWAyivE7mRu2IRnRbsd6yFa3E2qy94MJMrygBeHLffnc_O/exec';  // ← Вставте URL сюди
+    const ENDPOINT = 'https://script.google.com/macros/s/AKfycbyqDqnXMnG6_LnoU7AEvjODlDsYnkb-LCgiE18qx34s8PSLAEMDttLTFD-DJ5rMoQtR/exec';  // ← Вставте URL вашого Apps Script
     // ============================================================
 
     /*
     === Google Apps Script код для вставки: ===
 
+    // Створіть папку "Diqto Feedback" на Google Drive
+    // і вставте її ID нижче (з URL папки)
+    var FOLDER_ID = 'YOUR_FOLDER_ID';
+
     function doPost(e) {
       var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
       var data = JSON.parse(e.postData.contents);
+      var folder = DriveApp.getFolderById(1-TZCWTmcc7NnRbfMejqKaKa5PRI-YACA);
+
+      // Зберігаємо файли на Google Drive
+      var fileLinks = [];
+      if (data.attachments && data.attachments.length > 0) {
+        for (var i = 0; i < data.attachments.length; i++) {
+          var att = data.attachments[i];
+          var bytes = Utilities.base64Decode(att.data.split(',')[1]);
+          var blob = Utilities.newBlob(bytes, att.type, att.name);
+          var file = folder.createFile(blob);
+          file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+          fileLinks.push(file.getUrl());
+        }
+      }
 
       sheet.appendRow([
         data.timestamp,
@@ -449,7 +467,7 @@
         data.device,
         data.type,
         data.text,
-        data.attachments ? data.attachments.join('\n') : ''
+        fileLinks.join('\n')
       ]);
 
       return ContentService.createTextOutput(
@@ -458,7 +476,7 @@
     }
 
     // Перший рядок листа зробіть заголовком:
-    // Timestamp | Author | Device | Type | Text | Attachments
+    // Timestamp | Author | Device | Type | Text | Files
 
     ============================================
     */
@@ -598,18 +616,23 @@
         let sent = false;
         if (ENDPOINT) {
             try {
-                const res = await fetch(ENDPOINT, {
+                const payload = {
+                    timestamp: report.timestamp,
+                    author: report.author,
+                    device: report.device,
+                    type: report.type,
+                    text: report.text,
+                    attachments: imageData
+                };
+                console.log('Sending payload, attachments:', imageData.length, 'files');
+                console.log('First attachment type:', imageData[0]?.type, 'data length:', imageData[0]?.data?.length);
+
+                // Google Apps Script потребує text/plain + no-cors
+                await fetch(ENDPOINT, {
                     method: 'POST',
                     mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        timestamp: report.timestamp,
-                        author: report.author,
-                        device: report.device,
-                        type: report.type,
-                        text: report.text,
-                        attachments: imageData.map((a, i) => `[${a.type.startsWith('video/') ? 'video' : 'image'}_${i + 1}]`)
-                    })
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify(payload)
                 });
                 sent = true;
             } catch (err) {
