@@ -690,7 +690,10 @@
                 const canvas = document.createElement('canvas');
                 canvas.width = w;
                 canvas.height = h;
-                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, w, h);
+                ctx.drawImage(img, 0, 0, w, h);
                 const compressed = canvas.toDataURL('image/jpeg', quality);
                 console.log('Compressed:', file.name, (file.size/1024).toFixed(0) + 'KB →', (compressed.length * 0.75 / 1024).toFixed(0) + 'KB');
                 resolve({ data: compressed, type: 'image/jpeg', name: file.name.replace(/\.\w+$/, '.jpg') });
