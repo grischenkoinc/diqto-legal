@@ -433,7 +433,7 @@
     // 2. Extensions → Apps Script
     // 3. Вставте код (нижче в коментарі)
     // 4. Deploy → Web App → Anyone → Deploy → скопіюйте URL
-    const ENDPOINT = 'https://script.google.com/macros/s/AKfycbyqDqnXMnG6_LnoU7AEvjODlDsYnkb-LCgiE18qx34s8PSLAEMDttLTFD-DJ5rMoQtR/exec';  // ← Вставте URL вашого Apps Script
+    const ENDPOINT = 'URL_СЮДИ';  // ← Вставте URL вашого Apps Script
     // ============================================================
 
     /*
@@ -594,12 +594,16 @@
         btn.textContent = 'Надсилаю...';
         btn.disabled = true;
 
-        // Конвертуємо файли в base64 для збереження
+        // Стискаємо зображення перед відправкою
         const imageData = [];
         for (const file of attachedFiles) {
-            if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+            if (file.type.startsWith('image/')) {
+                const compressed = await compressImage(file);
+                imageData.push(compressed);
+            } else if (file.type.startsWith('video/')) {
+                // Відео занадто великі для Apps Script — зберігаємо тільки локально
                 const base64 = await fileToBase64(file);
-                imageData.push({ data: base64, type: file.type, name: file.name });
+                imageData.push({ data: base64, type: file.type, name: file.name, localOnly: true });
             }
         }
 
@@ -616,23 +620,25 @@
         let sent = false;
         if (ENDPOINT) {
             try {
+                // Відправляємо тільки стиснені зображення (без відео)
+                const serverAttachments = imageData.filter(a => !a.localOnly);
                 const payload = {
                     timestamp: report.timestamp,
                     author: report.author,
                     device: report.device,
                     type: report.type,
                     text: report.text,
-                    attachments: imageData
+                    attachments: serverAttachments
                 };
-                console.log('Sending payload, attachments:', imageData.length, 'files');
-                console.log('First attachment type:', imageData[0]?.type, 'data length:', imageData[0]?.data?.length);
 
-                // Google Apps Script потребує text/plain + no-cors
+                const bodyStr = JSON.stringify(payload);
+                console.log('Payload size:', (bodyStr.length / 1024).toFixed(0) + ' KB, images:', serverAttachments.length);
+
                 await fetch(ENDPOINT, {
                     method: 'POST',
                     mode: 'no-cors',
                     headers: { 'Content-Type': 'text/plain' },
-                    body: JSON.stringify(payload)
+                    body: bodyStr
                 });
                 sent = true;
             } catch (err) {
@@ -661,6 +667,35 @@
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result);
             reader.readAsDataURL(file);
+        });
+    }
+
+    // Стиснення зображення до макс 1200px і JPEG 0.7 якість
+    function compressImage(file, maxWidth, quality) {
+        maxWidth = maxWidth || 1200;
+        quality = quality || 0.7;
+        return new Promise((resolve) => {
+            if (!file.type.startsWith('image/')) {
+                // Відео не стискаємо
+                return fileToBase64(file).then(data => resolve({ data, type: file.type, name: file.name }));
+            }
+            const img = new Image();
+            img.onload = () => {
+                let w = img.width;
+                let h = img.height;
+                if (w > maxWidth) {
+                    h = Math.round(h * maxWidth / w);
+                    w = maxWidth;
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                const compressed = canvas.toDataURL('image/jpeg', quality);
+                console.log('Compressed:', file.name, (file.size/1024).toFixed(0) + 'KB →', (compressed.length * 0.75 / 1024).toFixed(0) + 'KB');
+                resolve({ data: compressed, type: 'image/jpeg', name: file.name.replace(/\.\w+$/, '.jpg') });
+            };
+            img.src = URL.createObjectURL(file);
         });
     }
 
