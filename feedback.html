@@ -594,14 +594,13 @@
         btn.textContent = 'Надсилаю...';
         btn.disabled = true;
 
-        // Стискаємо зображення перед відправкою
+        // Конвертуємо файли в base64
         const imageData = [];
         for (const file of attachedFiles) {
             if (file.type.startsWith('image/')) {
-                const compressed = await compressImage(file);
-                imageData.push(compressed);
+                const base64 = await fileToBase64(file);
+                imageData.push({ data: base64, type: file.type, name: file.name });
             } else if (file.type.startsWith('video/')) {
-                // Відео занадто великі для Apps Script — зберігаємо тільки локально
                 const base64 = await fileToBase64(file);
                 imageData.push({ data: base64, type: file.type, name: file.name, localOnly: true });
             }
