@@ -433,7 +433,12 @@
     // 2. Extensions → Apps Script
     // 3. Вставте код (нижче в коментарі)
     // 4. Deploy → Web App → Anyone → Deploy → скопіюйте URL
-    const ENDPOINT = 'https://script.google.com/macros/s/AKfycby6s92RISui56HEQPHqiXkliO244DDaFro2u_2tXF7z_GGxLXHRNIWukH2-Pn8q9a6H/exec';  // ← Вставте URL вашого Apps Script
+    // TELEGRAM — скріншоти приходять сюди
+    const TG_TOKEN = '8605209251:AAEa4iuoXfhBTLcXLUyhx7fNQh2bPVPMyGU';   // ← токен від @BotFather
+    const TG_CHAT_ID = '5098699923'; // ← ID групи/каналу
+
+    // GOOGLE SHEET — текстові дані (без зображень)
+    const ENDPOINT = '';   // ← URL Apps Script (необов'язково)
     // ============================================================
 
     /*
@@ -615,50 +620,61 @@
             attachments: imageData
         };
 
-        // Спробувати відправити на сервер
+        // Відправка в Telegram
         let sent = false;
+        if (TG_TOKEN && TG_CHAT_ID) {
+            try {
+                const typeLabels = { bug: '🐛 БАГ', idea: '💡 ІДЕЯ', feedback: '💬 ДУМКА' };
+                const message = `${typeLabels[report.type] || report.type}\n\n${report.text}\n\n👤 ${report.author}\n📱 ${report.device}\n🕐 ${new Date().toLocaleString('uk-UA')}`;
+
+                const allFiles = imageData.filter(a => !a.localOnly);
+
+                if (allFiles.length === 0) {
+                    // Тільки текст
+                    await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ chat_id: TG_CHAT_ID, text: message })
+                    });
+                } else {
+                    // Перше зображення з підписом
+                    for (let i = 0; i < allFiles.length; i++) {
+                        const file = attachedFiles[i];
+                        const fd = new FormData();
+                        fd.append('chat_id', TG_CHAT_ID);
+                        if (i === 0) fd.append('caption', message);
+
+                        if (file.type.startsWith('video/')) {
+                            fd.append('video', file);
+                            await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendVideo`, { method: 'POST', body: fd });
+                        } else {
+                            fd.append('photo', file);
+                            await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendPhoto`, { method: 'POST', body: fd });
+                        }
+                    }
+                }
+                sent = true;
+            } catch (err) {
+                console.warn('Telegram send failed:', err);
+            }
+        }
+
+        // Також в Google Sheet (тільки текст)
         if (ENDPOINT) {
             try {
-                const serverAttachments = imageData.filter(a => !a.localOnly);
-
-                // Крок 1: відправляємо текст (без зображень)
                 await fetch(ENDPOINT, {
                     method: 'POST',
                     mode: 'no-cors',
                     headers: { 'Content-Type': 'text/plain' },
                     body: JSON.stringify({
-                        action: 'text',
                         timestamp: report.timestamp,
                         author: report.author,
                         device: report.device,
                         type: report.type,
-                        text: report.text,
-                        imageCount: serverAttachments.length
+                        text: report.text
                     })
                 });
-
-                // Крок 2: кожне зображення окремим запитом
-                for (let i = 0; i < serverAttachments.length; i++) {
-                    const att = serverAttachments[i];
-                    console.log('Sending image', i + 1, '/', serverAttachments.length, 'size:', (att.data.length / 1024).toFixed(0), 'KB');
-                    await fetch(ENDPOINT, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        headers: { 'Content-Type': 'text/plain' },
-                        body: JSON.stringify({
-                            action: 'image',
-                            timestamp: report.timestamp,
-                            data: att.data,
-                            type: att.type,
-                            name: att.name
-                        })
-                    });
-                }
-
-                sent = true;
-            } catch (err) {
-                console.warn('Server send failed:', err);
-            }
+            } catch (err) {}
         }
 
         // Завжди зберігаємо локально
