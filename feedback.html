@@ -513,19 +513,19 @@
 
     function buildCaption(report) {
         const icons = { bug: '\ud83d\udc1b', idea: '\ud83d\udca1', feedback: '\ud83d\udcac' };
-        const labels = { bug: '\u0411\u0410\u0413', idea: '\u0406\u0414\u0415\u042f', feedback: '\u0414\u0423\u041c\u041a\u0410' };
+        const labels = { bug: 'БАГ', idea: 'ІДЕЯ', feedback: 'ДУМКА' };
         const icon = icons[report.type] || '\ud83d\udcac';
         const label = labels[report.type] || report.type;
-        const lines = [
-            `${icon} <b>${label}</b>`,
+
+        return [
+            icon + ' ' + label,
             '',
             report.text,
             '',
-            `\ud83d\udc64 ${report.author}`,
-        ];
-        if (report.device) lines.push(`\ud83d\udcf1 ${report.device}`);
-        lines.push(`\ud83d\udd50 ${new Date().toLocaleString('uk-UA')}`);
-        return lines.join('\n');
+            '\ud83d\udc64 ' + report.author,
+            report.device ? '\ud83d\udcf1 ' + report.device : '',
+            '\ud83d\udd50 ' + new Date().toLocaleString('uk-UA')
+        ].filter(Boolean).join('\n');
     }
 
     // Submit
@@ -560,7 +560,6 @@
                         body: JSON.stringify({
                             chat_id: TG_CHAT_ID,
                             text: caption,
-                            parse_mode: 'HTML'
                         })
                     });
                 } else if (mediaFiles.length === 1) {
@@ -569,7 +568,6 @@
                     const fd = new FormData();
                     fd.append('chat_id', TG_CHAT_ID);
                     fd.append('caption', caption);
-                    fd.append('parse_mode', 'HTML');
                     if (file.type.startsWith('video/')) {
                         fd.append('video', file);
                         await tgSend('sendVideo', { body: fd });
@@ -589,7 +587,6 @@
                         const item = { type, media: `attach://${key}` };
                         if (i === 0) {
                             item.caption = caption;
-                            item.parse_mode = 'HTML';
                         }
                         media.push(item);
                     });
